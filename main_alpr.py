@@ -12,8 +12,7 @@ import configparser
 
 def get_binary_image(img):
     binary = cv2.adaptiveThreshold(img, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 29, 2)
-    inv_binary = 255 - binary
-    return inv_binary
+    return 255 - binary
 
 def get_sorted_char_list(cropped_char):
     char_keys = sorted(cropped_char.keys())
@@ -75,9 +74,8 @@ def get_characters(img):
     return char_list
 
 def load_lp_model(path):
-    model = load_model(path)
     # model.summary()
-    return model
+    return load_model(path)
 
 def load_classes(label_path):
     with open(label_path, "r") as f:
@@ -197,19 +195,9 @@ def main():
     #load classes
     classes = load_classes(data['label_path'])
 
-    if not data['is_folder']:
-        #read license plate image
-        img = cv2.imread(data['image_path'])
-        #character segmentation
-        char_list = get_characters(img)
-        #character recognition
-        number_plate = lp_recognition(char_list, model, classes)
-        print('LP Number: ', number_plate)
-
-    else:
-        if data["delete_existing_csv"]:
-            if os.path.exists("license_plate.csv"):
-                os.remove("license_plate.csv")
+    if data['is_folder']:
+        if data["delete_existing_csv"] and os.path.exists("license_plate.csv"):
+            os.remove("license_plate.csv")
         #read license plate images
         for files in sorted(os.listdir(data['folder_path'])):
             print(files)
@@ -222,15 +210,24 @@ def main():
 
                 print('LP Number: ', number_plate)
                 if data['write_to_csv']:
-                    if not os.path.exists("license_plate.csv"):
+                    if os.path.exists("license_plate.csv"):
+                        with open("license_plate.csv", "a") as f:
+                            writer = csv.writer(f)
+                            writer.writerow([files, number_plate])
+
+                    else:
                         with open("license_plate.csv", "w") as f:
                             writer = csv.writer(f)
                             writer.writerow(["filename", "LP number"])
                             writer.writerow([files, number_plate])
-                    else:
-                        with open("license_plate.csv", "a") as f:
-                            writer = csv.writer(f)
-                            writer.writerow([files, number_plate])
+    else:
+        #read license plate image
+        img = cv2.imread(data['image_path'])
+        #character segmentation
+        char_list = get_characters(img)
+        #character recognition
+        number_plate = lp_recognition(char_list, model, classes)
+        print('LP Number: ', number_plate)
 
 if __name__ == "__main__":
     main()
